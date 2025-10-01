@@ -7,6 +7,8 @@ import humanize
 import rich.progress
 import rich.text
 
+from .multiprocessing import ProxyServer, lookup_progress, lookup_task
+
 
 class PrefixedMofNCompleteColumn(rich.progress.MofNCompleteColumn):
     def render(self, task) -> rich.text.Text:
@@ -35,6 +37,8 @@ class Task[T_work: int | float]:
 
         self.work_completed: T_work = cast(T_work, 0)
 
+        self._id: int | None = None
+
     def __enter__(self):
         self.start()
         return self
@@ -62,6 +66,11 @@ class Task[T_work: int | float]:
         """Finalize the task, marking it as completed or cancelled."""
         self.progress._stop_task(self, cancelled, self.transient)
 
+        if self._id is not None:
+            server = ProxyServer()
+            server.unregister_task(self._id)
+            self._id = None
+
     def range(self, *args):
         """Yield numbers in range, updating progress."""
 
@@ -77,8 +86,28 @@ class Task[T_work: int | float]:
             self.update(1)  # type: ignore
 
     def __reduce__(self) -> tuple[Callable, tuple]:
-        # TODO: Implement serialization for multiprocessing
-        ...
+        # Serialize the task for multiprocessing
+        server = ProxyServer()
+
+        # Don't register the task multiple times
+        if self._id is None:
+            self._id = server.register_task(self)
+
+        # `lookup_task` will create a proxy to the task
+        return (
+            lookup_task,
+            (
+                server.address,
+                server.authkey,
+                self._id,
+            ),
+        )
+
+    def _get_work_completed(self) -> T_work:
+        return self.work_completed
+
+    def _get_work_expected(self) -> T_work | None:
+        return self.work_expected
 
 
 class Progress[T_work: int | float]:
@@ -108,6 +137,7 @@ class Progress[T_work: int | float]:
             self._overall_progress_id = None
 
         self._lock = threading.RLock()
+        self._id: int | None = None
 
     def __enter__(self):
         self.start()
@@ -126,8 +156,15 @@ class Progress[T_work: int | float]:
             for task in list(self.active_tasks):
                 task.cancel()
 
+            # Stop the progress bar
             if self._progress_bar is not None:
                 self._progress_bar.stop()
+
+            # Unregister from the ProxyServer
+            if self._id is not None:
+                server = ProxyServer()
+                server.unregister_progress(self._id)
+                self._id = None
 
     def add_task(
         self,
@@ -242,93 +279,19 @@ class Progress[T_work: int | float]:
             yield self._progress_bar
 
     def __reduce__(self) -> tuple[Callable, tuple]:
-        # TODO: Implement serialization for multiprocessing
-        ...
+        # Serialize the progress instance for multiprocessing
+        server = ProxyServer()
 
+        # Don't register the progress instance multiple times
+        if self._id is None:
+            self._id = server.register_progress(self)
 
-if __name__ == "__main__":
-    # Demonstrate usage
-    import random
-    import time
-
-    from rich.progress import (
-        BarColumn,
-        DownloadColumn,
-        MofNCompleteColumn,
-        TaskProgressColumn,
-        TextColumn,
-        TimeRemainingColumn,
-    )
-    from rich.progress import (
-        Progress as RichProgress,
-    )
-
-    # A hierarchy of projects / files / bytes
-    n_projects = random.randint(5, 15)
-    with (
-        # Estimate the number of projects
-        Progress(
-            n_projects,
-            overall_description="Projects",
-            progress_bar=RichProgress(
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                TaskProgressColumn(),
-                TimeRemainingColumn(compact=True),
+        # `lookup_progress` will create a proxy to the progress instance
+        return (
+            lookup_progress,
+            (
+                server.address,
+                server.authkey,
+                self._id,
             ),
-        ) as all_projects,
-        Progress(
-            n_tasks=all_projects,
-            overall_description="Files (total)",
-            progress_bar=RichProgress(
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                MofNCompleteColumn(),
-                TaskProgressColumn(),
-                TimeRemainingColumn(compact=True),
-            ),
-        ) as all_files,
-        Progress(
-            n_tasks=all_files,
-            overall_description="Bytes (total)",
-            progress_bar=RichProgress(
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                DownloadColumn(),
-                TaskProgressColumn(),
-                TimeRemainingColumn(compact=True),
-            ),
-        ) as all_bytes,
-    ):
-        print(f"Processing {n_projects} projects...")
-        for project_id in range(n_projects):
-            with all_projects.add_task(1) as project_task:
-                project_may_fail = project_id % 3 == 0
-
-                try:
-                    n_files = random.randint(5, 15)
-
-                    with all_files.add_task(
-                        n_files,
-                        description=f"Files for {project_id}",
-                    ) as project_files:
-                        for file_id in project_files.range(n_files):
-                            n_bytes = random.randint(500, 1000)
-
-                            with all_bytes.add_task(
-                                n_bytes,
-                                description=f"Copy {project_id}/{file_id}",
-                            ) as file_bytes:
-                                for i in file_bytes.range(n_bytes):
-                                    if project_may_fail and random.random() < 0.001:
-                                        raise ValueError(
-                                            f"Error at {project_id}/{file_id} byte {i}!"
-                                        )
-
-                                    time.sleep(0.0001)  # Simulate work
-                except ValueError as e:
-                    print(f"Error processing project {project_id}: {e}")
-                    project_task.cancel()
-                else:
-                    project_task.update(1)
+        )

@@ -1,4 +1,7 @@
-from richer_progress import Progress
+import time
+
+from richer_progress.multiprocessing import ProxyServer
+from richer_progress.progress import Progress, Task
 
 
 def test_task_not_completed():
@@ -46,3 +49,36 @@ def test_task_cancel():
         assert progress.n_tasks_cancelled == 1
         assert progress.work_expected is None
         assert progress.work_completed == 0
+
+
+def _mp_worker(task: Task[int]):
+    with task:
+        for _ in task.range(5):
+            time.sleep(0.01)  # Simulate work
+
+    assert task.work_completed == 5
+
+
+def test_multiprocessing():
+    import multiprocessing
+
+    mpctx = multiprocessing.get_context("spawn")
+
+    assert ProxyServer() is ProxyServer()
+
+    n_workers = 4
+    with Progress(n_workers) as progress:
+        processes = [
+            mpctx.Process(target=_mp_worker, args=(progress.add_task(5),))
+            for _ in range(n_workers)
+        ]
+        for p in processes:
+            p.start()
+        for p in processes:
+            p.join()
+
+        assert len(ProxyServer()._tasks) == n_workers
+
+        # After all processes have completed, the total expected work should be 20 (4 processes * 5 work each)
+        assert progress.work_expected == 20
+        assert progress.work_completed == 20
