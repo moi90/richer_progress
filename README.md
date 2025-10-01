@@ -5,21 +5,17 @@ A progress-tracking library built on top of [rich.progress](https://rich.readthe
 `richer_progress` is designed for workloads where progress is **hierarchical** and the **total amount of work is only gradually revealed**.  
 It provides a clean API for tracking tasks, their sizes, completions, and failures — and integrates seamlessly with Rich's beautiful progress bars.
 
-## Why?
+## What makes richer_progress special?
 
-`rich.progress` is great when you know the total upfront (e.g. “download 1 GB”).  
-But many real workloads look like this:
+`richer_progress` extends `rich.progress` with features for **dynamic, nested, and evolving workloads**:
 
-- You know the number of **projects**, but not how many **files** each contains until you start them.
-- Each files may contain a different number of **bytes**.
-
-With `richer_progress`, you can:
-
-- Add tasks as they are discovered (`add_task(size)`).
-- Track work completed vs work remaining in **consistent units**.
-- Adjust the expected total when task sizes are discovered or tasks are dropped.
-- Aggregate progress across multiple levels (projects → files → bytes).
-- Still enjoy the live, colorful rendering of Rich.
+- **Hierarchical progress tracking:** Track progress across multiple levels (e.g. projects → files → bytes), aggregating completion at each level.
+- **Dynamic task discovery:** Add tasks as they are found, even after progress tracking has started.
+- **Unknown totals:** Start tracking without knowing the full workload size; update totals as new information arrives.
+- **Consistent units:** Track progress in consistent units across all tasks and levels.
+- **Flexible updates:** Adjust expected totals, add or remove tasks, and handle failures gracefully.
+- **Rich integration:** All features work seamlessly with Rich's live, colorful progress rendering.
+- **Multiprocessing capabilities:** Effortlessly track and aggregate progress from multiple worker processes. `richer_progress` provides mechanisms for safe, real-time progress updates across process boundaries, making it suitable for distributed or parallel workloads.
 
 ## License
 

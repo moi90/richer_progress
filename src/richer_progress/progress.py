@@ -53,7 +53,7 @@ class Task[T_work: int | float]:
         if work_expected is not None:
             self.work_expected = work_expected
 
-        self.progress._update(self)
+        self.progress._update_progress_bar(self)
 
     def start(self):
         self.progress._start_task(self)
@@ -168,12 +168,13 @@ class Progress[T_work: int | float]:
 
     def add_task(
         self,
-        work_expected: T_work = 1,
+        work_expected: T_work | None = None,
         *,
         description: str | None = None,
         transient=True,
     ) -> Task[T_work]:
         with self._lock:
+            # Create a progress bar if needed
             if self._progress_bar is not None and description is not None:
                 progress_bar_task_id = self._progress_bar.add_task(
                     description, total=work_expected
@@ -183,6 +184,10 @@ class Progress[T_work: int | float]:
 
             task = Task(self, work_expected, progress_bar_task_id, transient)
             self.active_tasks.append(task)
+
+            # Update the overall progress bar with the new total expected work
+            self._update_progress_bar()
+
             return task
 
     def _start_task(self, task: Task[T_work]):
@@ -212,7 +217,7 @@ class Progress[T_work: int | float]:
                 else:
                     self._progress_bar.stop_task(task.progress_bar_task_id)
 
-    def _update(self, task: Task | None = None):
+    def _update_progress_bar(self, task: Task | None = None):
         with self._lock:
             if self._progress_bar is None:
                 return
