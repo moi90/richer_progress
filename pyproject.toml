@@ -19,4 +19,15 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src/richer_progress --cov-report html --cov-report lcov:coverage/lcov.info"
+
+[tool.coverage.run]
+concurrency = ["thread", "multiprocessing"]
+omit = [
+    "tests/*",
+    "src/richer_progress/__main__.py",
 ]

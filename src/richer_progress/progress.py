@@ -113,12 +113,14 @@ class Task[T_work: int | float]:
 class Progress[T_work: int | float]:
     def __init__(
         self,
-        n_tasks: int | Progress[int],
+        n_tasks: int | Progress[int] | None = None,
         *,
         progress_bar: rich.progress.Progress | None = None,
         overall_description: str | None = None,
     ):
-        if not isinstance(n_tasks, (int, Progress)):
+        if not (
+            n_tasks is None or isinstance(n_tasks, (int, Progress))
+        ):  # pragma: no cover
             raise ValueError("n_tasks must be an int or another Progress instance")
 
         self.n_tasks_completed: int = 0
@@ -152,8 +154,8 @@ class Progress[T_work: int | float]:
 
     def stop(self):
         with self._lock:
-            # Cancel all active tasks
-            for task in list(self.active_tasks):
+            # Cancel all active tasks (may happen if the main process exits before all tasks are done)
+            for task in list(self.active_tasks):  # pragma: no cover
                 task.cancel()
 
             # Stop the progress bar
@@ -189,6 +191,15 @@ class Progress[T_work: int | float]:
             self._update_progress_bar()
 
             return task
+
+    def add_cancelled_task(self):
+        """
+        Add a cancelled task.
+
+        Shortform for `add_task().cancel()`.
+        """
+        with self._lock:
+            self.n_tasks_cancelled += 1
 
     def _start_task(self, task: Task[T_work]):
         with self._lock:
@@ -239,8 +250,7 @@ class Progress[T_work: int | float]:
                     total=self.work_expected,
                 )
 
-    @property
-    def work_expected(self) -> T_work | None:
+    def _get_work_expected(self) -> T_work | None:
         """Get the expected total amount of work of all tasks."""
         with self._lock:
             n_tasks: int | None = (
@@ -279,9 +289,7 @@ class Progress[T_work: int | float]:
                 total_work_expected * n_tasks / n_tasks_known
             )  # type: ignore
 
-    def __rich_console__(self, console, options):
-        if self._progress_bar is not None and self._progress_bar.tasks:
-            yield self._progress_bar
+    work_expected = property(_get_work_expected)
 
     def __reduce__(self) -> tuple[Callable, tuple]:
         # Serialize the progress instance for multiprocessing

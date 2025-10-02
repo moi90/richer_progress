@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _warn_fork():
+def _warn_fork():  # pragma: no cover
     logger.warning(
         "Warning: fork() has been called. "
         "richer_progress will not work correctly in the child process. "
@@ -43,6 +43,15 @@ class ParameterSingletonMeta(type):
             instance = cls._instances[key] = super().__call__(*args, **kwargs)
 
             return instance
+
+    def clear_instances(cls):
+        """
+        Clear all instances of this singleton class.
+
+        .. attention:: This is only for testing purposes!
+        """
+        with cls._lock:
+            cls._instances = {k: v for k, v in cls._instances.items() if k[0] != cls}
 
 
 class ProxyServer(metaclass=ParameterSingletonMeta):
@@ -163,7 +172,7 @@ class TaskProxy(BaseProxy):
 
     @property
     def work_completed(self) -> int:
-        return self._callmethod("_get_work_completed")
+        return self._callmethod("_get_work_completed")  # type: ignore
 
     @property
     def work_expected(self) -> int | None:
@@ -181,10 +190,10 @@ class ProgressProxy(BaseProxy):
     _exposed_ = ("add_task",)
 
     def add_task(self, *args, **kwargs) -> TaskProxy:
-        return self._callmethod("add_task", args, kwargs)
+        return self._callmethod("add_task", args, kwargs)  # type: ignore
 
 
-class _ProxyClient:
+class ProxyClient(metaclass=ParameterSingletonMeta):
     def __init__(self, address, authkey) -> None:
         class ProgressManager(BaseManager):
             pass
@@ -196,15 +205,10 @@ class _ProxyClient:
         self._client.connect()
 
     def lookup_progress(self, progress_id: int) -> "Progress":
-        return self._client.Progress(progress_id)
+        return self._client.Progress(progress_id)  # type: ignore
 
     def lookup_task(self, task_id: int) -> "Task":
-        return self._client.Task(task_id)
-
-
-@functools.cache
-def ProxyClient(address, authkey) -> _ProxyClient:
-    return _ProxyClient(address, authkey)
+        return self._client.Task(task_id)  # type: ignore
 
 
 def lookup_task(address, authkey, task_id):
