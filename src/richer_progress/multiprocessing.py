@@ -127,11 +127,7 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
 
     def _lookup_task(self, task_id: int):
         with self._lock:
-            try:
-                return self._tasks[task_id]
-            except KeyError as e:
-                e.add_note(f"self._tasks.keys(): {list(self._tasks.keys())}")
-                raise e
+            return self._tasks[task_id]
 
 
 class TaskProxy(BaseProxy):
@@ -194,7 +190,7 @@ class ProgressProxy(BaseProxy):
 
 
 class ProxyClient(metaclass=ParameterSingletonMeta):
-    def __init__(self, address, authkey) -> None:
+    def __init__(self, address, authkey: bytes) -> None:
         class ProgressManager(BaseManager):
             pass
 
@@ -211,9 +207,9 @@ class ProxyClient(metaclass=ParameterSingletonMeta):
         return self._client.Task(task_id)  # type: ignore
 
 
-def lookup_task(address, authkey, task_id):
+def lookup_task(address, authkey: bytes, task_id):
     return ProxyClient(address, authkey).lookup_task(task_id)
 
 
-def lookup_progress(address, authkey, progress_id):
+def lookup_progress(address, authkey: bytes, progress_id):
     return ProxyClient(address, authkey).lookup_progress(progress_id)
