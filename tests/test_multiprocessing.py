@@ -128,3 +128,27 @@ def test_proxy_client_lookup_progress_multiprocess():
         assert progress.n_tasks == 1, (
             "Progress instance on server should reflect changes made in worker process"
         )
+
+def test_unpickle_proxy_object():
+    """
+    Test that pickling and unpickling a Progress instance and its proxy works as expected.
+    """
+
+    progress = Progress(1)
+    # Simulate pickle and unpickle of the Progress instance
+    fn, args = progress.__reduce__()
+    progress_proxy = fn(*args)
+    assert isinstance(progress_proxy, ProgressProxy)
+
+    # Simulate pickle and unpickle of the ProgressProxy instance
+    fn, args = progress_proxy.__reduce__()
+
+    progress_proxy2 = fn(*args)
+    assert isinstance(progress_proxy2, ProgressProxy)
+
+    with progress_proxy2.add_task(3, description="baz") as task:
+        task.update(3)
+
+    assert progress.n_tasks == 1
+    assert progress.work_expected == 3
+    assert progress.work_completed == 3
