@@ -98,7 +98,6 @@ class Task[T_work: int | float]:
             lookup_task,
             (
                 server.address,
-                server.authkey,
                 self._id,
             ),
         )
@@ -304,7 +303,6 @@ class Progress[T_work: int | float]:
             lookup_progress,
             (
                 server.address,
-                server.authkey,
                 self._id,
             ),
         )

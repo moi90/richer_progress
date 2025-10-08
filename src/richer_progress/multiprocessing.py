@@ -1,5 +1,4 @@
 import atexit
-import functools
 import inspect
 import logging
 import os
@@ -70,7 +69,6 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
         server = self._progress_manager.get_server()
 
         self.address = server.address
-        self.authkey = bytes(server.authkey)  # type: ignore
 
         # Start the server in a background thread
         threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -190,14 +188,14 @@ class ProgressProxy(BaseProxy):
 
 
 class ProxyClient(metaclass=ParameterSingletonMeta):
-    def __init__(self, address, authkey: bytes) -> None:
+    def __init__(self, address) -> None:
         class ProgressManager(BaseManager):
             pass
 
         ProgressManager.register("Progress", proxytype=ProgressProxy)
         ProgressManager.register("Task", proxytype=TaskProxy)
 
-        self._client = ProgressManager(address=address, authkey=authkey)
+        self._client = ProgressManager(address=address)
         self._client.connect()
 
     def lookup_progress(self, progress_id: int) -> "ProgressProxy":
@@ -207,7 +205,7 @@ class ProxyClient(metaclass=ParameterSingletonMeta):
         return self._client.Task(task_id)  # type: ignore
 
 
-def lookup_task(address, authkey: bytes, task_id):
+def lookup_task(address, task_id):
     """
     Lookup a Task instance by its ID.
 
@@ -215,10 +213,10 @@ def lookup_task(address, authkey: bytes, task_id):
 
     See: :meth:`Task.__reduce__`.
     """
-    return ProxyClient(address, authkey).lookup_task(task_id)
+    return ProxyClient(address).lookup_task(task_id)
 
 
-def lookup_progress(address, authkey: bytes, progress_id):
+def lookup_progress(address, progress_id):
     """
     Lookup a Progress instance by its ID.
 
@@ -226,4 +224,4 @@ def lookup_progress(address, authkey: bytes, progress_id):
 
     See: :meth:`Progress.__reduce__`.
     """
-    return ProxyClient(address, authkey).lookup_progress(progress_id)
+    return ProxyClient(address).lookup_progress(progress_id)

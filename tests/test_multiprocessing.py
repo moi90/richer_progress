@@ -1,4 +1,4 @@
-from richer_progress.multiprocessing import ProxyClient, ProxyServer
+from richer_progress.multiprocessing import ProgressProxy, ProxyClient, ProxyServer
 from richer_progress.progress import Progress
 
 
@@ -10,11 +10,9 @@ def test_proxy_server_singleton():
 
 def test_proxy_client_singleton():
     server = ProxyServer()
-    client1 = ProxyClient(server.address, server.authkey)
-    client2 = ProxyClient(server.address, server.authkey)
-    assert client1 is client2, (
-        "ProxyClient should be a singleton per (address, authkey) pair"
-    )
+    client1 = ProxyClient(server.address)
+    client2 = ProxyClient(server.address)
+    assert client1 is client2, "ProxyClient should be a singleton per each address"
 
 
 def test_register_and_lookup_progress():
@@ -43,7 +41,7 @@ def test_proxy_client_lookup_progress_singleprocess():
     with Progress(1) as progress:
         progress_id = server.register_progress(progress)
 
-        client = ProxyClient(server.address, server.authkey)
+        client = ProxyClient(server.address)
         looked_up_progress = client.lookup_progress(progress_id)
 
         looked_up_progress.add_task(5, description="bar")
@@ -59,7 +57,7 @@ def test_proxy_client_lookup_task_singleprocess():
         task = progress.add_task(10, description="foo")
         task_id = server.register_task(task)
 
-        client = ProxyClient(server.address, server.authkey)
+        client = ProxyClient(server.address)
         looked_up_task = client.lookup_task(task_id)
 
         looked_up_task.update(delta=5)
@@ -69,8 +67,8 @@ def test_proxy_client_lookup_task_singleprocess():
         )
 
 
-def _test_proxy_client_lookup_task_multiprocess_worker(address, authkey, task_id):
-    client = ProxyClient(address, authkey)
+def _test_proxy_client_lookup_task_multiprocess_worker(address, task_id):
+    client = ProxyClient(address)
     looked_up_task = client.lookup_task(task_id)
     with looked_up_task:
         for _ in looked_up_task.range(5):
@@ -88,7 +86,7 @@ def test_proxy_client_lookup_task_multiprocess():
 
         p = multiprocessing.get_context("spawn").Process(
             target=_test_proxy_client_lookup_task_multiprocess_worker,
-            args=(server.address, server.authkey, task_id),
+            args=(server.address, task_id),
         )
         p.start()
         p.join()
@@ -101,10 +99,8 @@ def test_proxy_client_lookup_task_multiprocess():
         )
 
 
-def _test_proxy_client_lookup_progress_multiprocess_worker(
-    address, authkey, progress_id
-):
-    client = ProxyClient(address, authkey)
+def _test_proxy_client_lookup_progress_multiprocess_worker(address, progress_id):
+    client = ProxyClient(address)
     looked_up_progress = client.lookup_progress(progress_id)
     looked_up_progress.add_task(5, description="bar")
 
@@ -120,7 +116,7 @@ def test_proxy_client_lookup_progress_multiprocess():
 
         p = multiprocessing.get_context("spawn").Process(
             target=_test_proxy_client_lookup_progress_multiprocess_worker,
-            args=(server.address, server.authkey, progress_id),
+            args=(server.address, progress_id),
         )
         p.start()
         p.join()
@@ -128,6 +124,7 @@ def test_proxy_client_lookup_progress_multiprocess():
         assert progress.n_tasks == 1, (
             "Progress instance on server should reflect changes made in worker process"
         )
+
 
 def test_unpickle_proxy_object():
     """
