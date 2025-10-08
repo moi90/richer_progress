@@ -290,6 +290,9 @@ class Progress[T_work: int | float]:
 
     work_expected = property(_get_work_expected)
 
+    def _get_work_completed(self):
+        return self.work_completed
+
     def __reduce__(self) -> tuple[Callable, tuple]:
         # Serialize the progress instance for multiprocessing
         server = ProxyServer()

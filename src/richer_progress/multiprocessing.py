@@ -161,8 +161,6 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
 
             self._tasks[id] = task
 
-            print(f"Registered task {id}: {task}")
-
             return id
 
     def unregister_task(self, task_id: int) -> None:
@@ -243,6 +241,14 @@ class ProgressProxy(BaseProxy):
 
     def add_task(self, *args, **kwargs) -> TaskProxy:
         return self._callmethod("add_task", args, kwargs)  # type: ignore
+
+    @property
+    def work_expected(self) -> int:
+        return self._callmethod("_get_work_expected")  # type: ignore
+
+    @property
+    def work_completed(self) -> int:
+        return self._callmethod("_get_work_completed")  # type: ignore
 
     def __reduce__(self):
         rebuild_proxy, args = super().__reduce__()
