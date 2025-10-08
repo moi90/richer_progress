@@ -9,7 +9,14 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "humanize>=4.13.0",
+    "netifaces>=0.11.0",
     "rich>=14.1.0",
+]
+
+[project.optional-dependencies]
+distributed = [
+    "dask-jobqueue>=0.9.0",
+    "distributed>=2025.9.1",
 ]
 
 [build-system]

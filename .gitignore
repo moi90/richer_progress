@@ -4,3 +4,4 @@ coverage/
 lcov.info
 coverage.lcov
 .coverage
+slurm-*.out

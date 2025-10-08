@@ -3,6 +3,7 @@ import inspect
 import logging
 import os
 import threading
+import traceback
 import uuid
 from multiprocessing.managers import BaseManager, BaseProxy
 from typing import TYPE_CHECKING
@@ -39,6 +40,7 @@ class ParameterSingletonMeta(type):
             except KeyError:
                 pass
 
+            logger.debug(f"Creating {cls}(*{args}, **{kwargs})...")
             instance = cls._instances[key] = super().__call__(*args, **kwargs)
 
             return instance
@@ -54,6 +56,41 @@ class ParameterSingletonMeta(type):
 
 
 class ProxyServer(metaclass=ParameterSingletonMeta):
+    # The interface to bind the server to, or None for any interface
+    _interface: str | None = None
+
+    @classmethod
+    def _get_address(cls):
+        if cls._interface is None:
+            return ("", 0)  # bind to any interface
+        else:
+            # Lookup IP address of the specified interface
+            import netifaces
+
+            addresses = netifaces.ifaddresses(cls._interface)
+
+            try:
+                ip4_addresses = addresses[netifaces.AF_INET]
+            except KeyError:
+                pass
+            else:
+                if len(ip4_addresses) > 0:
+                    ip_address = ip4_addresses[0]["addr"]
+                    return (ip_address, 0)
+
+            try:
+                ip6_addresses = addresses[netifaces.AF_INET6]
+            except KeyError:
+                pass
+            else:
+                if len(ip6_addresses) > 0:
+                    ip_address = ip6_addresses[0]["addr"]
+                    return (ip_address, 0)
+
+            raise RuntimeError(
+                f"Interface '{cls._interface}' has no IPv4 or IPv6 address"
+            )
+
     def __init__(self):
         class ProgressManager(BaseManager):
             pass
@@ -65,7 +102,7 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
             "Task", callable=self._lookup_task, proxytype=TaskProxy
         )
 
-        self._progress_manager = ProgressManager()
+        self._progress_manager = ProgressManager(address=self._get_address())
         server = self._progress_manager.get_server()
 
         self.address = server.address
@@ -85,6 +122,21 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
         self._tasks: dict[int, object] = {}
         self._lock = threading.Lock()
 
+    @classmethod
+    def configure(cls, interface: str | None = None):
+        """
+        Configure the ProxyServer.
+
+        This has to be done before the first instance is created.
+        """
+
+        with cls._lock:
+            if cls._instances:
+                raise RuntimeError("ProxyServer already instantiated")
+
+            if interface is not None:
+                cls._interface = interface
+
     def register_progress(self, progress: "Progress") -> int:
         with self._lock:
             if progress in self._processes.values():
@@ -93,8 +145,6 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
             id = uuid.uuid4().int
 
             self._processes[id] = progress
-
-            print(f"Registered progress {id}: {progress}")
 
             return id
 
@@ -180,11 +230,23 @@ class TaskProxy(BaseProxy):
         self.stop()
 
 
+def _wrap_rebuild(func, args):
+    try:
+        return func(*args)
+    except Exception as e:
+        traceback.TracebackException.from_exception(e, capture_locals=True).print()
+        raise
+
+
 class ProgressProxy(BaseProxy):
     _exposed_ = ("add_task",)
 
     def add_task(self, *args, **kwargs) -> TaskProxy:
         return self._callmethod("add_task", args, kwargs)  # type: ignore
+
+    def __reduce__(self):
+        rebuild_proxy, args = super().__reduce__()
+        return (_wrap_rebuild, (rebuild_proxy, args))
 
 
 class ProxyClient(metaclass=ParameterSingletonMeta):
