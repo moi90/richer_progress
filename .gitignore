@@ -5,3 +5,4 @@ lcov.info
 coverage.lcov
 .coverage
 slurm-*.out
+_version.py
