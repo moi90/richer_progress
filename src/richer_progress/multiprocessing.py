@@ -200,16 +200,30 @@ class ProxyClient(metaclass=ParameterSingletonMeta):
         self._client = ProgressManager(address=address, authkey=authkey)
         self._client.connect()
 
-    def lookup_progress(self, progress_id: int) -> "Progress":
+    def lookup_progress(self, progress_id: int) -> "ProgressProxy":
         return self._client.Progress(progress_id)  # type: ignore
 
-    def lookup_task(self, task_id: int) -> "Task":
+    def lookup_task(self, task_id: int) -> "TaskProxy":
         return self._client.Task(task_id)  # type: ignore
 
 
 def lookup_task(address, authkey: bytes, task_id):
+    """
+    Lookup a Task instance by its ID.
+
+    Used to unserialize a Task proxy in a child process.
+
+    See: :meth:`Task.__reduce__`.
+    """
     return ProxyClient(address, authkey).lookup_task(task_id)
 
 
 def lookup_progress(address, authkey: bytes, progress_id):
+    """
+    Lookup a Progress instance by its ID.
+
+    Used to unserialize a Progress proxy in a child process.
+
+    See: :meth:`Progress.__reduce__`.
+    """
     return ProxyClient(address, authkey).lookup_progress(progress_id)
