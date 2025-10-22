@@ -200,6 +200,20 @@ class Progress[T_work: int | float]:
         with self._lock:
             self.n_tasks_cancelled += 1
 
+            self._update_progress_bar()
+
+    def add_completed_task(self, work: T_work):
+        """
+        Add a completed task with the given amount of work.
+
+        Shortform for `add_task(work).update(work).stop()`.
+        """
+        with self._lock:
+            self.n_tasks_completed += 1
+            self.work_completed += work  # type: ignore
+
+            self._update_progress_bar()
+
     def _start_task(self, task: Task[T_work]):
         with self._lock:
             if self._progress_bar is not None and task.progress_bar_task_id is not None:
