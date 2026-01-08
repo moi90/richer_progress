@@ -2,11 +2,11 @@ import time
 import unittest.mock
 
 from richer_progress.multiprocessing import ProxyServer
-from richer_progress.progress import Progress, Task
+from richer_progress.progress import ProgressTracker, Task
 
 
 def test_task_not_completed():
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         # While were in a task, the total size should reflect the expected size of the task
         with progress.add_task(10, description="foo"):
             assert progress.work_expected == 10
@@ -18,7 +18,7 @@ def test_task_not_completed():
 
 
 def test_task_completed():
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         # While were in a task, the total size should reflect the expected size of the task
         with progress.add_task(10, description="foo") as task:
             assert progress.work_expected == 10
@@ -33,7 +33,7 @@ def test_task_completed():
 
 
 def test_task_cancel():
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         # While were in a task, the total size should reflect the expected size of the task
         with progress.add_task(10, description="foo") as task:
             assert progress.work_expected == 10
@@ -53,7 +53,7 @@ def test_task_cancel():
 
 
 def test_task_update_expected():
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         # While were in a task, the total size should reflect the expected size of the task
         with progress.add_task(10, description="foo") as task:
             assert progress.work_expected == 10
@@ -65,7 +65,7 @@ def test_task_update_expected():
 
 
 def test_add_cancelled_task():
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         progress.add_cancelled_task()
 
         assert progress.n_tasks_completed == 0
@@ -75,19 +75,19 @@ def test_add_cancelled_task():
 
 
 def test_no_tasks():
-    with Progress() as progress:
+    with ProgressTracker() as progress:
         assert progress.work_expected is None
         assert progress.work_completed == 0
 
 
 def test_task_wrapper_methods():
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         with progress.add_task(10) as task:
             assert list(task.enumerate(range(5))) == list(enumerate(range(5)))
             assert list(task.range(5)) == list(range(5))
 
 
-def _mp_worker(progress: Progress, task: Task):
+def _mp_worker(progress: ProgressTracker, task: Task):
     with task:
         assert task.work_completed == 0
         assert task.work_expected == 5
@@ -107,12 +107,15 @@ def test_multiprocessing():
     n_workers = 4
     with (
         unittest.mock.patch.object(
-            Progress, "__reduce__", wraps=Progress.__reduce__, autospec=True
+            ProgressTracker,
+            "__reduce__",
+            wraps=ProgressTracker.__reduce__,
+            autospec=True,
         ) as reduce_progress,
         unittest.mock.patch.object(
             Task, "__reduce__", wraps=Task.__reduce__, autospec=True
         ) as reduce_task,
-        Progress(n_workers) as progress,
+        ProgressTracker(n_workers) as progress,
     ):
         processes = [
             mpctx.Process(

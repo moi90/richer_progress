@@ -1,5 +1,5 @@
 from richer_progress.multiprocessing import ProgressProxy, ProxyClient, ProxyServer
-from richer_progress.progress import Progress
+from richer_progress.progress import ProgressTracker
 
 
 def test_proxy_server_singleton():
@@ -17,7 +17,7 @@ def test_proxy_client_singleton():
 
 def test_register_and_lookup_progress():
     server = ProxyServer()
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         progress_id = server.register_progress(progress)
         looked_up_progress = server._lookup_progress(progress_id)
         assert looked_up_progress is progress, (
@@ -27,7 +27,7 @@ def test_register_and_lookup_progress():
 
 def test_register_and_lookup_task():
     server = ProxyServer()
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         task = progress.add_task(10, description="foo")
         task_id = server.register_task(task)
         looked_up_task = server._lookup_task(task_id)
@@ -38,7 +38,7 @@ def test_register_and_lookup_task():
 
 def test_proxy_client_lookup_progress_singleprocess():
     server = ProxyServer()
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         progress_id = server.register_progress(progress)
 
         client = ProxyClient(server.address)
@@ -53,7 +53,7 @@ def test_proxy_client_lookup_progress_singleprocess():
 
 def test_proxy_client_lookup_task_singleprocess():
     server = ProxyServer()
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         task = progress.add_task(10, description="foo")
         task_id = server.register_task(task)
 
@@ -80,7 +80,7 @@ def test_proxy_client_lookup_task_multiprocess():
     import multiprocessing
 
     server = ProxyServer()
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         task = progress.add_task(10, description="foo")
         task_id = server.register_task(task)
 
@@ -111,7 +111,7 @@ def test_proxy_client_lookup_progress_multiprocess():
     import multiprocessing
 
     server = ProxyServer()
-    with Progress(1) as progress:
+    with ProgressTracker(1) as progress:
         progress_id = server.register_progress(progress)
 
         p = multiprocessing.get_context("spawn").Process(
@@ -131,7 +131,7 @@ def test_unpickle_proxy_object():
     Test that pickling and unpickling a Progress instance and its proxy works as expected.
     """
 
-    progress = Progress(1)
+    progress = ProgressTracker(1)
     # Simulate pickle and unpickle of the Progress instance
     fn, args = progress.__reduce__()
     progress_proxy = fn(*args)

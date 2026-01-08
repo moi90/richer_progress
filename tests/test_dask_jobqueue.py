@@ -4,7 +4,7 @@ import secrets
 
 import pytest
 
-from richer_progress import Progress
+from richer_progress import ProgressTracker
 from richer_progress.multiprocessing import ProxyServer
 from richer_progress.testing import single_task_job
 
@@ -43,7 +43,7 @@ def test_with_SLURM(pytestconfig):
             name="richer-progress-test",
         ) as cluster,
         Client(cluster) as client,
-        Progress(1) as progress,
+        ProgressTracker(1) as progress,
     ):
         # Setup authkey for worker processes
         from richer_progress.distributed import AuthkeyFromEnvPlugin

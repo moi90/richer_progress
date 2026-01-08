@@ -9,7 +9,7 @@ from multiprocessing.managers import BaseManager, BaseProxy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .progress import Progress, Task
+    from .progress import ProgressTracker, Task
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ class ProxyServer(metaclass=ParameterSingletonMeta):
             if interface is not None:
                 cls._interface = interface
 
-    def register_progress(self, progress: "Progress") -> int:
+    def register_progress(self, progress: "ProgressTracker") -> int:
         with self._lock:
             if progress in self._processes.values():
                 raise ValueError("Progress instance is already registered")

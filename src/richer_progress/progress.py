@@ -10,7 +10,7 @@ import rich.text
 from .multiprocessing import ProxyServer, lookup_progress, lookup_task
 
 
-class PrefixedMofNCompleteColumn(rich.progress.MofNCompleteColumn):
+class HumanReadableMofNColumn(rich.progress.MofNCompleteColumn):
     def render(self, task) -> rich.text.Text:
         """Show completed/total."""
         total = humanize.metric(task.total) if task.total is not None else "?"
@@ -23,9 +23,16 @@ class PrefixedMofNCompleteColumn(rich.progress.MofNCompleteColumn):
 
 
 class Task[T_work: int | float]:
+    """
+    A single tracked unit of work.
+
+    A Task tracks completed and expected work amounts, supports context-manager usage, and can be
+    serialized to a multiprocessing proxy via __reduce__.
+    """
+
     def __init__(
         self,
-        progress: Progress,
+        progress: ProgressTracker,
         work_expected: T_work | None,
         progress_bar_task_id: rich.progress.TaskID | None,
         transient: bool,
@@ -109,16 +116,45 @@ class Task[T_work: int | float]:
         return self.work_expected
 
 
-class Progress[T_work: int | float]:
+class ProgressTracker[T_work: int | float]:
+    """
+    Track and aggregate progress across multiple units of work (tasks), optionally
+    rendering to a Rich Progress bar. Supports context-manager lifecycle and estimation
+    of total expected work when some tasks have unknown totals.
+
+    Args:
+        n_tasks: Expected number of tasks (int), another ProgressTracker to derive
+                 expected totals from, or None if unknown.
+        progress_bar: Optional rich.progress.Progress instance used to render task
+                      and overall progress.
+        overall_description: Optional description for the overall progress row when
+                             a progress bar is provided.
+
+    Attributes:
+        n_tasks_completed: Number of tasks that finished successfully.
+        n_tasks_cancelled: Number of tasks that were cancelled.
+        active_tasks: List of currently active Task instances.
+        work_completed: Total completed work from finished tasks (overall progress
+                        also adds active tasks' work during updates).
+
+    Notes:
+        - Use add_task() to create tasks; add_completed_task() and add_cancelled_task()
+          to record outcomes without creating Task instances.
+        - The overall expected work is inferred from known tasks when possible and
+          scaled to the expected number of tasks.
+        - When progress_bar is provided, individual tasks and an optional overall row
+          are kept in sync.
+    """
+
     def __init__(
         self,
-        n_tasks: int | Progress[int] | None = None,
+        n_tasks: int | ProgressTracker[int] | None = None,
         *,
         progress_bar: rich.progress.Progress | None = None,
         overall_description: str | None = None,
     ):
         if not (
-            n_tasks is None or isinstance(n_tasks, (int, Progress))
+            n_tasks is None or isinstance(n_tasks, (int, ProgressTracker))
         ):  # pragma: no cover
             raise ValueError("n_tasks must be an int or another Progress instance")
 
@@ -268,7 +304,7 @@ class Progress[T_work: int | float]:
         with self._lock:
             n_tasks: int | None = (
                 self.n_tasks.work_expected
-                if isinstance(self.n_tasks, Progress)
+                if isinstance(self.n_tasks, ProgressTracker)
                 else self.n_tasks
             )
 

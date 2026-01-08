@@ -21,13 +21,13 @@ if __name__ == "__main__":
         Progress as RichProgress,
     )
 
-    from . import Progress
+    from . import ProgressTracker
 
     # A hierarchy of projects / files / bytes
     n_projects = random.randint(5, 15)
     with (
         # Estimate the number of projects
-        Progress(
+        ProgressTracker(
             n_projects,
             overall_description="Projects",
             progress_bar=RichProgress(
@@ -38,7 +38,7 @@ if __name__ == "__main__":
                 TimeRemainingColumn(compact=True),
             ),
         ) as all_projects,
-        Progress(
+        ProgressTracker(
             n_tasks=all_projects,
             overall_description="Files (total)",
             progress_bar=RichProgress(
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 TimeRemainingColumn(compact=True),
             ),
         ) as all_files,
-        Progress(
+        ProgressTracker(
             n_tasks=all_files,
             overall_description="Bytes (total)",
             progress_bar=RichProgress(

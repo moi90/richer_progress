@@ -1,3 +1,3 @@
-from .progress import Progress
+from .progress import ProgressTracker
 
-__all__ = ["Progress"]
+__all__ = ["ProgressTracker"]

@@ -12,7 +12,7 @@ from rich.progress import (
     Progress as RichProgress,
 )
 
-from richer_progress.progress import PrefixedMofNCompleteColumn, Progress
+from richer_progress.progress import HumanReadableMofNColumn, ProgressTracker
 
 
 @pytest.mark.parametrize("transient_tasks", [True, False])
@@ -21,13 +21,13 @@ def test_overall_progress_bar(transient_tasks: bool):
     string_io = StringIO()
     console = Console(file=string_io)
 
-    with Progress(
+    with ProgressTracker(
         n_tasks,
         overall_description="Tasks (total)",
         progress_bar=RichProgress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
-            PrefixedMofNCompleteColumn(),
+            HumanReadableMofNColumn(),
             TaskProgressColumn(),
             TimeRemainingColumn(compact=True),
             console=console,
