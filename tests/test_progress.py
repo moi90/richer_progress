@@ -85,6 +85,7 @@ def test_task_wrapper_methods():
         with progress.add_task(10) as task:
             assert list(task.enumerate(range(5))) == list(enumerate(range(5)))
             assert list(task.range(5)) == list(range(5))
+            assert list(task.track(range(5))) == list(range(5))
 
 
 def _mp_worker(progress: ProgressTracker, task: Task):

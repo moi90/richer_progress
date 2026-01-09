@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Iterable, Iterator
 from typing import Callable, cast
 
 import humanize
@@ -78,18 +79,25 @@ class Task[T_work: int | float]:
             server.unregister_task(self._id)
             self._id = None
 
-    def range(self, *args):
+    def range(self, *args) -> Iterator[int]:
         """Yield numbers in range, updating progress."""
 
         for i in range(*args):
             yield i
             self.update(1)  # type: ignore
 
-    def enumerate(self, iterable):
+    def enumerate[T](self, iterable: Iterable[T]) -> Iterator[tuple[int, T]]:
         """Yield (index, item) pairs from iterable, updating progress."""
 
         for i, item in enumerate(iterable):
             yield i, item
+            self.update(1)  # type: ignore
+
+    def track[T](self, iterable: Iterable[T]) -> Iterator[T]:
+        """Yield items from iterable, updating progress."""
+
+        for item in iterable:
+            yield item
             self.update(1)  # type: ignore
 
     def __reduce__(self) -> tuple[Callable, tuple]:
